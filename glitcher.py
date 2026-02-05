@@ -181,6 +181,7 @@ class GlitcherWindow(QMainWindow):
 			pass
 		super().resizeEvent(event)
 
+
 	# drag and drop support
 	def dragEnterEvent(self, event):
 		if event.mimeData().hasUrls():
