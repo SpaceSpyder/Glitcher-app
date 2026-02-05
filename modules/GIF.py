@@ -99,4 +99,4 @@ def glitchGifWithJPEG(inputGif, outputGif, percent=50, maxChunkLength=50, seed=N
         duration=durations,
         disposal=disposal)
 
-    return skippedFrames
+    return skippedFrames, total

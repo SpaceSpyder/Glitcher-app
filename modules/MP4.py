@@ -162,5 +162,5 @@ def glitchMp4(
 		print(f"{skipped_frames}/{total_frames} frames skipped (corrupted after glitch)")
 
 	glitch_type_str = f"Glitch type: {glitchType}"
-	return skipped_frames, audio_status, glitch_type_str
+	return skipped_frames, total_frames, audio_status, glitch_type_str
 

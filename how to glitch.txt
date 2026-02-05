@@ -1,4 +1,4 @@
-Glitcher v1.1
+Glitcher v1.2
 
 file types supported: .PNG .JPEG .BMP .GIF .MP4
 
