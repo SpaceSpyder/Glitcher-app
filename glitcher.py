@@ -1,6 +1,15 @@
 import os
 import shutil
 from pathlib import Path
+import sys
+import subprocess
+
+# auto-setup venv and installs packages
+venv_path = Path(__file__).parent / ".venv"
+if not venv_path.exists():
+	subprocess.run([sys.executable, "-m", "venv", str(venv_path)], check=True)
+	pip_path = venv_path / "Scripts" / "pip.exe"
+	subprocess.run([str(pip_path), "install", "-r", str(venv_path.parent / "requirements.txt")], check=True)
 
 os.environ.setdefault("QT_MULTIMEDIA_PREFERRED_PLUGINS", "windowsmediafoundation")
 
@@ -25,7 +34,9 @@ class GlitcherWindow(QMainWindow):
 	def __init__(self):
 		super().__init__()
 		self.setWindowTitle("Glitcher v1.2")
-		self.setMinimumSize(700, 500)
+		#self.setMinimumSize(700, 500)
+		self.move(300, 300)
+		self.setAcceptDrops(True)  # enable drag-drop anywhere on window
 
 		# selectedPath is used for previewing (can be original or latest output)
 		self.selectedPath = None
@@ -40,8 +51,10 @@ class GlitcherWindow(QMainWindow):
 		widgetLeft.setMaximumWidth(350)
 
 		widgetRight = QWidget()
-		widgetRight.setMinimumSize(250,300)
+		widgetRight.setMinimumSize(150,300)
 		widgetRight.setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX)
+		self.widgetRight = widgetRight  # store reference for later updates
+		#self.widgetRight.setAcceptDrops(True)  # enable drag and drop
 
 		rightLayout = QVBoxLayout(widgetRight)
 
@@ -55,7 +68,8 @@ class GlitcherWindow(QMainWindow):
 		rightLayout.addLayout(topLayout)
 
 		self.previewStack = QStackedWidget(widgetRight)
-		self.previewStack.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+		self.previewStack.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+		#self.previewStack.setAcceptDrops(True)  # enables drag and drop on right side of window
 		rightLayout.addWidget(self.previewStack)
 	
 		self.imageLabel = QLabel(self.previewStack)
@@ -156,6 +170,7 @@ class GlitcherWindow(QMainWindow):
 		self.setCentralWidget(root)
 
 		self.fileDisplay = self.imageLabel # holds original file path
+		#self.widgetRight.setAcceptDrops(True)  # enable drag and drop
 	
 	# image/video preview scaling
 	def resizeEvent(self, event):
@@ -165,6 +180,107 @@ class GlitcherWindow(QMainWindow):
 		except Exception:
 			pass
 		super().resizeEvent(event)
+
+	# drag and drop support
+	def dragEnterEvent(self, event):
+		if event.mimeData().hasUrls():
+			event.acceptProposedAction()
+
+	def dropEvent(self, event):
+		files = [url.toLocalFile() for url in event.mimeData().urls()]
+		if files:
+			self.loadFile(files[0])
+
+	# load file from button or drag-drop
+	def loadFile(self, path):
+		if not path or not Path(path).exists():
+			return
+		
+		ext = Path(path).suffix.lower()
+		if ext not in [".png", ".jpg", ".jpeg", ".bmp", ".gif", ".mp4"]:
+			QMessageBox.warning(self, "Unsupported", f"Unsupported file type: {ext}")
+			return
+		
+		# store the original upload for future glitches
+		self.originalPath = path
+		# preview starts as the original upload
+		self.selectedPath = path
+		self.uploadLabel.setText(Path(path).name)
+
+		# updates the image display
+		self.updateImageDisplay()
+
+		# get media dimensions and update widget size to maintain aspect ratio
+		dimensions = self.getMediaDimensions(path)
+		if dimensions:
+			width, height = dimensions
+			finalHeight = 400
+			print(f"DEBUG: previewStack height: {finalHeight}, GIF height: {height}")
+			scale = finalHeight / height
+			#ratioS = width / height
+			finalWidth = int(width * scale )
+			print(f"DEBUG: Calculated widget width: {finalWidth}, Total window width would be: {150 + finalWidth}")
+			self.previewStack.resize(finalWidth, finalHeight)
+			self.resize(450 + finalWidth, 500)
+
+		# Check if the file is an image and display it
+		if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
+			pixmap = QPixmap(path)
+			if pixmap.isNull():
+				self.showUnreadablePreview()
+			else:
+				self.fileDisplay.setPixmap(pixmap)
+
+		self.log(f"Loaded: {path}")
+
+	# get media dimensions for any supported file type
+	def getMediaDimensions(self, path):
+		if not path or not Path(path).exists():
+			return None
+		
+		ext = Path(path).suffix.lower()
+		
+		try:
+			if ext in ['.png', '.jpg', '.jpeg', '.bmp']:
+				pixmap = QPixmap(path)
+				if not pixmap.isNull():
+					return (pixmap.width(), pixmap.height())
+			
+			elif ext == '.gif':
+				movie = QMovie(path)
+				if movie.isValid() and movie.jumpToFrame(0):
+					frame_rect = movie.frameRect()
+					dims = (frame_rect.width(), frame_rect.height())
+					print(f"DEBUG: GIF dimensions: {dims}")
+					return dims
+				else:
+					print(f"DEBUG: QMovie failed for GIF - isValid={movie.isValid()}")
+					# Fallback: try PIL
+					try:
+						from PIL import Image
+						img = Image.open(path)
+						dims = img.size
+						print(f"DEBUG: PIL fallback GIF dimensions: {dims}")
+						return dims
+					except Exception as e:
+						print(f"DEBUG: PIL fallback failed: {e}")
+			
+			elif ext == '.mp4':
+				# use moviepy to get actual video dimensions
+				try:
+					from moviepy.video.io.VideoFileClip import VideoFileClip
+					clip = VideoFileClip(path)
+					width, height = clip.size
+					clip.close()
+					return (width, height)
+				except Exception:
+					pass
+				# fallback if moviepy fails
+				return (1920, 1080)
+		except Exception:
+			pass
+		
+		return None
 
 
 	# makes sure the output file doesn't overwrite an existing file 
@@ -199,7 +315,7 @@ class GlitcherWindow(QMainWindow):
 
 	# help button function
 	def showHelp(self):
-		help_file = Path(__file__).resolve().parent / "how to glitch.txt"
+		help_file = Path(__file__).resolve().parent / "assets/how to glitch.txt"
 		if help_file.exists():
 			os.startfile(str(help_file))
 			self.log("Opening help file...")
@@ -213,36 +329,8 @@ class GlitcherWindow(QMainWindow):
 		path, _ = QFileDialog.getOpenFileName(
 			self, "Select file",
 			defaultDir, "Supported files (*.png *.jpg *.jpeg *.bmp *.gif *.mp4);;All files (*.*)") # file upload filters
-		if not path:
-			return
-		
-		# store the original upload for future glitches
-		self.originalPath = path
-		# preview starts as the original upload
-		self.selectedPath = path
-		self.uploadLabel.setText(Path(path).name)
-
-		# updates the image display
-		self.updateImageDisplay()
-
-		# Check if the file is an image and display it
-		ext = Path(path).suffix.lower()
-		if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
-			pixmap = QPixmap(path)
-			if pixmap.isNull():
-				self.showUnreadablePreview()
-			else:
-				self.fileDisplay.setPixmap(pixmap)
-		elif ext == ".gif":
-			# updateImageDisplay() already set up the QMovie
-			pass
-		elif ext == ".mp4":
-			# updateImageDisplay() already started playback
-			pass
-		else:
-			self.fileDisplay.setText(f"Uploaded: {Path(path).name}")  # update widgetRight display
-
-		self.log(f"Selected: {path}")
+		if path:
+			self.loadFile(path)
 
 
 	# update the file display after the process is done

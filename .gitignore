@@ -2,13 +2,12 @@
 /data/**/*.jpg
 /data/**/*.jpeg
 /data/**/*.bmp
-
 /data/**/*.JPG
 /data/**/*.JPEG
 /data/**/*.BMP
+
 /dist/*
 /build/*
 *.pyc
-__pycache__/
-*.spec
-*.log
+modules/__pycache__/
+__pycache__/*.pyc
