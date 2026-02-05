@@ -1,0 +1,22 @@
+Glitcher v1.1
+
+file types supported: .PNG .JPEG .BMP .GIF .MP4
+
+how to glitch:
+1. run glitcher.py
+2. upload a file
+3. select type of glitch effect 
+4. select amount of glitching
+5. click "glitch" to run the program
+6. wait till progress bar is full
+7. your glitched file will be automatically opened and will be in your downloads folder
+
+types of glitching explained:
+    the program works by converting your file to either a BMP file of JPEG and glitches those file types.
+    if the file is a gif or mp4 it will split it into frames of BMPs or JPEGs and glitch each frame and stitch it all back together.
+
+glitch amount explained:
+    the level of glitching is done in percent.
+    the higher the percent the higher the amount of data is randomised.
+    due to this at higher percentages for videos it might have less glitched frames.
+    this is because the frames were glitched beyond use and are then replaced by the original frame instead.
