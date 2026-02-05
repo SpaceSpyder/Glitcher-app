@@ -91,7 +91,7 @@ class GlitcherWindow(QMainWindow):
 
 		self.previewStack.setCurrentWidget(self.imageLabel)
 		
-		self.imagePreview = QMovie(self.selectedPath) if self.selectedPath is not None else QMovie("assets\placeHolder.png")
+		self.imagePreview = QMovie(self.selectedPath) if self.selectedPath is not None else QMovie("assets\placeholder.png")
 		self.imageLabel.setMovie(self.imagePreview)
 		self.imagePreview.setScaledSize(self.imageLabel.size())  # scale the GIF to fit
 		self.imagePreview.start()
@@ -199,7 +199,7 @@ class GlitcherWindow(QMainWindow):
 
 	# help button function
 	def showHelp(self):
-		help_file = Path("how to glitch.txt")
+		help_file = Path(__file__).resolve().parent / "how to glitch.txt"
 		if help_file.exists():
 			os.startfile(str(help_file))
 			self.log("Opening help file...")
@@ -438,7 +438,7 @@ class GlitcherWindow(QMainWindow):
 			except Exception:
 				pass
 			self.previewStack.setCurrentWidget(self.imageLabel)
-			placeholder_path = Path(__file__).resolve().parent / "assets" / "placeHolder.png"
+			placeholder_path = Path(__file__).resolve().parent / "assets" / "placeholder.png"
 			pixmap = QPixmap(str(placeholder_path))
 			if not pixmap.isNull():
 				self.imageLabel.setPixmap(pixmap)

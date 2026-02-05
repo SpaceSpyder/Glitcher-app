@@ -6,3 +6,9 @@
 /data/**/*.JPG
 /data/**/*.JPEG
 /data/**/*.BMP
+/dist/*
+/build/*
+*.pyc
+__pycache__/
+*.spec
+*.log
