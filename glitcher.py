@@ -2,8 +2,6 @@ import os
 import shutil
 from pathlib import Path
 
-# Prefer the WMF backend on Windows (more reliable than DirectShow for many codecs).
-# Must be set before QtMultimedia is imported.
 os.environ.setdefault("QT_MULTIMEDIA_PREFERRED_PLUGINS", "windowsmediafoundation")
 
 from PyQt5.QtWidgets import *
@@ -39,7 +37,6 @@ class GlitcherWindow(QMainWindow):
 
 		widgetLeft = QWidget()
 		widgetLeft.setMinimumSize(350, 300)
-		#widgetLeft.setMaximumSize(350, 600)
 		widgetLeft.setMaximumWidth(350)
 
 		widgetRight = QWidget()
@@ -48,7 +45,7 @@ class GlitcherWindow(QMainWindow):
 
 		rightLayout = QVBoxLayout(widgetRight)
 
-				# help button
+		# help button
 		topLayout = QHBoxLayout()
 		topLayout.addStretch()
 		self.helpButton = QPushButton("Help")
@@ -61,10 +58,8 @@ class GlitcherWindow(QMainWindow):
 		self.previewStack.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 		rightLayout.addWidget(self.previewStack)
 	
-		# Move the initialization of self.imageLabel before adding it to the layout
 		self.imageLabel = QLabel(self.previewStack)
-		# Let the layout control sizing; scaling is handled via setScaledContents / QMovie scaling.
-		self.imageLabel.setScaledContents(True)  # Ensure content scales automatically
+		self.imageLabel.setScaledContents(True)  # content scales automatically
 		self.imageLabel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 		self.previewStack.addWidget(self.imageLabel)
 
@@ -73,7 +68,6 @@ class GlitcherWindow(QMainWindow):
 		if _HAS_QT_MULTIMEDIA:
 			self.videoWidget = QVideoWidget(self.previewStack)
 			self.videoWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-			# Match QLabel.setScaledContents(True) behavior: stretch to fill.
 			try:
 				if hasattr(self.videoWidget, "setAspectRatioMode"):
 					self.videoWidget.setAspectRatioMode(Qt.IgnoreAspectRatio)
@@ -99,11 +93,10 @@ class GlitcherWindow(QMainWindow):
 		
 		self.imagePreview = QMovie(self.selectedPath) if self.selectedPath is not None else QMovie("assets\placeHolder.png")
 		self.imageLabel.setMovie(self.imagePreview)
-		self.imagePreview.setScaledSize(self.imageLabel.size())  # Scale the GIF to fit the QLabel size
+		self.imagePreview.setScaledSize(self.imageLabel.size())  # scale the GIF to fit
 		self.imagePreview.start()
 
-		# Show placeholder until the user uploads a file
-		self.updateImageDisplay()
+		self.updateImageDisplay() # place holder image
 
 
 
@@ -112,7 +105,7 @@ class GlitcherWindow(QMainWindow):
 		self.uploadButton = QPushButton("Upload file")
 		self.uploadButton.clicked.connect(self.pickFile)
 
-		# glitch type button
+		# glitch type dropdown
 		self.typeLabel = QLabel("Glitch type")
 		self.typeSelect = QComboBox()
 		self.typeSelect.addItems(["BMP", "JPEG"])
@@ -138,16 +131,15 @@ class GlitcherWindow(QMainWindow):
 		self.outputConsole = QTextEdit()
 		self.outputConsole.setReadOnly(True)
 
-		# adds all the buttons to the window
-		# Create a horizontal layout to divide the window into left and right halves
+		# divide the window into left and right halves
 		mainLayout = QHBoxLayout()
-		mainLayout.addWidget(widgetLeft, 1)  # Left widget takes all the space
-		mainLayout.addWidget(widgetRight, 1)  # Right widget expands with the window
+		mainLayout.addWidget(widgetLeft, 1)  # left widget takes all the space
+		mainLayout.addWidget(widgetRight, 1)  # right widget expands with the window
 
-		# Set the layout for widgetLeft
+		# layout
 		leftLayout = QVBoxLayout(widgetLeft)
 
-		# Move all existing widgets to the left layout
+		# add widgets to the left layout
 		leftLayout.addWidget(self.uploadLabel)
 		leftLayout.addWidget(self.uploadButton)
 		leftLayout.addWidget(self.typeLabel)
@@ -159,16 +151,14 @@ class GlitcherWindow(QMainWindow):
 		leftLayout.addWidget(self.progressBar)
 		leftLayout.addWidget(self.outputConsole)
 
-		# Add the main layout to the root layout
+		# main layout
 		layout.addLayout(mainLayout)
-
 		self.setCentralWidget(root)
 
-		# Keep existing pickFile logic working without creating a second layout
-		self.fileDisplay = self.imageLabel
+		self.fileDisplay = self.imageLabel # holds original file path
 	
+	# image/video preview scaling
 	def resizeEvent(self, event):
-		# Keep GIF scaling in sync with the label size when the window/layout changes.
 		try:
 			if hasattr(self, "imagePreview") and self.imagePreview is not None:
 				self.imagePreview.setScaledSize(self.imageLabel.size())
@@ -232,7 +222,7 @@ class GlitcherWindow(QMainWindow):
 		self.selectedPath = path
 		self.uploadLabel.setText(Path(path).name)
 
-		# Update the image display
+		# updates the image display
 		self.updateImageDisplay()
 
 		# Check if the file is an image and display it
@@ -354,7 +344,6 @@ class GlitcherWindow(QMainWindow):
 			QMessageBox.critical(self, "Error", str(exc))
 
 
-	# Add a method to get the path of the uploaded image
 	def getUploadedFilePath(self):
 		return self.originalPath
 
@@ -385,7 +374,7 @@ class GlitcherWindow(QMainWindow):
 		self.showUnreadablePreview()
 
 	def _onVideoStatusChanged(self, status):
-		# If decoding fails (corrupted/unsupported), fall back to unreadable
+		# If decoding fails (corrupted), fall back to unreadable image
 		try:
 			if status == QMediaPlayer.InvalidMedia:
 				self.showUnreadablePreview()
@@ -439,7 +428,7 @@ class GlitcherWindow(QMainWindow):
 		except Exception:
 			self.showUnreadablePreview()
 
-	# Update the image display logic to handle both GIFs and static images
+	# image display logic to handle both GIFs and static images
 	def updateImageDisplay(self):
 		if not self.selectedPath:
 			self.stopVideoPreview()
@@ -461,7 +450,7 @@ class GlitcherWindow(QMainWindow):
 		if file_extension == ".gif":
 			self.stopVideoPreview()
 			self.previewStack.setCurrentWidget(self.imageLabel)
-			# Display GIF using QMovie
+			# display GIF using QMovie
 			movie = QMovie(self.selectedPath)
 			try:
 				movie.error.connect(self._onMovieError)
@@ -476,14 +465,14 @@ class GlitcherWindow(QMainWindow):
 		elif file_extension in [".png", ".jpg", ".jpeg", ".bmp"]:
 			self.stopVideoPreview()
 			self.previewStack.setCurrentWidget(self.imageLabel)
-			# Display static image using QPixmap
+			# display static image using QPixmap
 			pixmap = QPixmap(self.selectedPath)
 			if pixmap.isNull():
 				self.showUnreadablePreview()
 				return
 			self.imageLabel.setPixmap(pixmap)
 		elif file_extension == ".mp4":
-			# Autoplay video preview
+			# autoplay video preview
 			self.startVideoPreview(self.selectedPath)
 		else:
 			self.stopVideoPreview()
