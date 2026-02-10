@@ -14,9 +14,9 @@ if not venv_path.exists():
 os.environ.setdefault("QT_MULTIMEDIA_PREFERRED_PLUGINS", "windowsmediafoundation")
 
 from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QMovie
-from PyQt5.QtGui import *
+from PyQt5.QtGui import QPixmap
 
 try:
 	from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
@@ -232,7 +232,7 @@ class GlitcherWindow(QMainWindow):
 			else:
 				self.fileDisplay.setPixmap(pixmap)
 
-		self.log(f"Loaded: {path}")
+		#self.log(f"Loaded: {path}")
 
 	# get media dimensions for any supported file type
 	def getMediaDimensions(self, path):
@@ -370,7 +370,7 @@ class GlitcherWindow(QMainWindow):
 						percent=amount,
 						progressCallback=self.updateProgress,)
 					self.log(f"Frames skipped: {skipped} / {total_frames}")
-				self.log(f"Saved: {outputPath}")
+				#self.log(f"Saved: {outputPath}")
 				
 
 			elif ext in [".bmp", ".png"]:
@@ -428,7 +428,7 @@ class GlitcherWindow(QMainWindow):
 				self.log("Temp frames cleared.")
 			except Exception:
 				pass
-			self.log("Ready for next glitch!")
+			self.log("Ready")
 		except Exception as exc:
 			QMessageBox.critical(self, "Error", str(exc))
 
