@@ -105,12 +105,8 @@ class GlitcherWindow(QMainWindow):
 
 		self.previewStack.setCurrentWidget(self.imageLabel)
 		
-		self.imagePreview = QMovie(self.selectedPath) if self.selectedPath is not None else QMovie("assets\placeholder.png")
-		self.imageLabel.setMovie(self.imagePreview)
-		self.imagePreview.setScaledSize(self.imageLabel.size())  # scale the GIF to fit
-		self.imagePreview.start()
-
-		self.updateImageDisplay() # place holder image
+		# Initialize preview (will show placeholder if no file selected)
+		self.updateImageDisplay()
 
 
 
@@ -175,7 +171,7 @@ class GlitcherWindow(QMainWindow):
 	# image/video preview scaling
 	def resizeEvent(self, event):
 		try:
-			if hasattr(self, "imagePreview") and self.imagePreview is not None:
+			if hasattr(self, "imagePreview") and self.imagePreview is not None and isinstance(self.imagePreview, QMovie):
 				self.imagePreview.setScaledSize(self.imageLabel.size())
 		except Exception:
 			pass
@@ -449,7 +445,7 @@ class GlitcherWindow(QMainWindow):
 		except Exception:
 			pass
 
-		fallback_path = Path(__file__).resolve().parent / "assets" / "fileUnreadable.png"
+		fallback_path = Path(__file__).resolve().parent / "assets" / "icons" / "fileUnreadable.png"
 		pixmap = QPixmap(str(fallback_path))
 		if pixmap.isNull():
 			self.imageLabel.setText("File unreadable")
@@ -527,7 +523,7 @@ class GlitcherWindow(QMainWindow):
 			except Exception:
 				pass
 			self.previewStack.setCurrentWidget(self.imageLabel)
-			placeholder_path = Path(__file__).resolve().parent / "assets" / "placeholder.png"
+			placeholder_path = Path(__file__).resolve().parent / "assets" / "icons" / "placeHolder.png"
 			pixmap = QPixmap(str(placeholder_path))
 			if not pixmap.isNull():
 				self.imageLabel.setPixmap(pixmap)
@@ -550,6 +546,7 @@ class GlitcherWindow(QMainWindow):
 				return
 			self.imagePreview = movie
 			self.imageLabel.setMovie(self.imagePreview)
+			self.imagePreview.setScaledSize(self.imageLabel.size())
 			self.imagePreview.start()
 		elif file_extension in [".png", ".jpg", ".jpeg", ".bmp"]:
 			self.stopVideoPreview()

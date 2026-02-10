@@ -1,4 +1,15 @@
 ## Glitcher v1.2
-app may take longer to run when first used beacuse its downloading packages and setting up a virtual enviroment
+Currently supporting: .png, .jpeg, .bmp, .gif, .mp4
 
-![til](./assets/demo1.gif)
+
+> App may take longer when first ran because it's downloading packages and setting up a virtual environment
+
+<img src="./assets/examples%20demos/demo1.gif" width="600">
+
+## Examples:
+<img src="./assets/examples%20demos/ex(1).gif" width="400">
+<img src="./assets/examples%20demos/ex(2).gif" width="400">
+<img src="./assets/examples%20demos/ex(3).gif" width="400">
+<img src="./assets/examples%20demos/ex(4).gif" width="400">
+<img src="./assets/examples%20demos/ex(5).gif" width="400">
+<img src="./assets/examples%20demos/ex(6).gif" width="400">
