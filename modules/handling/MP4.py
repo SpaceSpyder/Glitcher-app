@@ -5,8 +5,8 @@ from pathlib import Path
 import imageio.v2 as imageio
 import math
 import imageio_ffmpeg
-from modules.JPEG import glitchJpeg
-from modules.BMP import glitchFrame
+from modules.glitch_types.JPEG import glitchJpeg
+from modules.glitch_types.BMP import convertFileToBMP, glitchBMP, glitchFrame
 
 
 def _prepare_folder(folder):
@@ -145,22 +145,17 @@ def glitchMp4(
 			try:
 				if os.path.exists(outputPath):
 					os.remove(outputPath)
-				shutil.move(video_only_path, outputPath)
+					shutil.move(video_only_path, outputPath)
 			except Exception:
 				pass
 	except Exception as e:
 		audio_status = f"Audio: error"
-		# fall back to video-only
 		try:
 			if os.path.exists(outputPath):
 				os.remove(outputPath)
 			shutil.move(video_only_path, outputPath)
 		except Exception:
 			pass
-
-	if skipped_frames:
-		print(f"{skipped_frames}/{total_frames} frames skipped (corrupted after glitch)")
-
 	glitch_type_str = f"Glitch type: {glitchType}"
 	return skipped_frames, total_frames, audio_status, glitch_type_str
 

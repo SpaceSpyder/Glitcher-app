@@ -25,9 +25,9 @@ try:
 except Exception:
 	_HAS_QT_MULTIMEDIA = False
 
-from modules.JPEG import glitchJpeg
-from modules.BMP import convertFileToBMP, glitchBMP
-from modules.GIF import glitchGif, glitchGifWithJPEG
+from modules.glitch_types.JPEG import glitchJpeg
+from modules.glitch_types.BMP import convertFileToBMP, glitchBMP
+from modules.handling.GIF import glitchGif, glitchGifWithJPEG, glitchGifBinary, repairGifWithFFmpeg
 
 
 class GlitcherWindow(QMainWindow):
@@ -118,7 +118,7 @@ class GlitcherWindow(QMainWindow):
 		# glitch type dropdown
 		self.typeLabel = QLabel("Glitch type")
 		self.typeSelect = QComboBox()
-		self.typeSelect.addItems(["BMP", "JPEG"])
+		self.typeSelect.addItems(["BMP", "JPEG", "GIF"])
 		self.typeSelect.setCurrentText("JPEG")
 
 		# glitch type amount
@@ -244,23 +244,14 @@ class GlitcherWindow(QMainWindow):
 					return (pixmap.width(), pixmap.height())
 			
 			elif ext == '.gif':
-				movie = QMovie(path)
-				if movie.isValid() and movie.jumpToFrame(0):
-					frame_rect = movie.frameRect()
-					dims = (frame_rect.width(), frame_rect.height())
-					print(f"DEBUG: GIF dimensions: {dims}")
+				# use PIL directly – QMovie's isValid() rejects glitched GIFs
+				try:
+					from PIL import Image
+					img = Image.open(path)
+					dims = img.size
 					return dims
-				else:
-					print(f"DEBUG: QMovie failed for GIF - isValid={movie.isValid()}")
-					# Fallback: try PIL
-					try:
-						from PIL import Image
-						img = Image.open(path)
-						dims = img.size
-						print(f"DEBUG: PIL fallback GIF dimensions: {dims}")
-						return dims
-					except Exception as e:
-						print(f"DEBUG: PIL fallback failed: {e}")
+				except Exception:
+					pass
 			
 			elif ext == '.mp4':
 				# use moviepy to get actual video dimensions
@@ -357,16 +348,21 @@ class GlitcherWindow(QMainWindow):
 				if choice == "BMP":
 					self.log("Applying BMP glitch to frames...")
 					glitchGif(str(srcPath), str(outputPath), percent=amount, progressCallback=self.updateProgress)
+				elif choice == "GIF":
+					self.log("Applying binary GIF glitch (LZW/color/disposal)...")
+					glitchGifBinary(str(srcPath), str(outputPath), percent=amount, progressCallback=self.updateProgress)
 				else:
 					self.log("Applying JPEG glitch to frames...")
-					# gets number of skipped frames and total frames for logging
 					skipped, total_frames = glitchGifWithJPEG(
 						str(srcPath),
 						str(outputPath),
 						percent=amount,
 						progressCallback=self.updateProgress,)
 					self.log(f"Frames skipped: {skipped} / {total_frames}")
-				#self.log(f"Saved: {outputPath}")
+				self.log("Repairing GIF structure via FFmpeg (preserves glitch visuals)...")
+				repairedPath = self.getUniquePath(downloadsDir, "glitched_repaired", ".gif")
+				repairGifWithFFmpeg(str(outputPath), str(repairedPath))
+				outputPath = repairedPath
 				
 
 			elif ext in [".bmp", ".png"]:
@@ -391,7 +387,7 @@ class GlitcherWindow(QMainWindow):
 
 			elif ext == ".mp4":
 				self.log("Processing MP4...")
-				from modules.MP4 import glitchMp4
+				from modules.handling.MP4 import glitchMp4
 				outputPath = self.getUniquePath(downloadsDir, "glitched", ".mp4")
 				self.log("Extracting frames from video...")
 				skipped, total_frames, audio_status, glitch_type_str = glitchMp4(
@@ -445,14 +441,16 @@ class GlitcherWindow(QMainWindow):
 		except Exception:
 			pass
 
-		fallback_path = Path(__file__).resolve().parent / "assets" / "icons" / "fileUnreadable.png"
-		pixmap = QPixmap(str(fallback_path))
-		if pixmap.isNull():
-			self.imageLabel.setText("File unreadable")
-			return
-		self.imageLabel.setPixmap(pixmap)
+		self.previewStack.resize(300, 300)
+		self.resize(450 + 300 + 50, 500)
+		self.imageLabel.setPixmap(QPixmap(str(Path(__file__).resolve().parent / "assets" / "icons" / "fileUnreadable.png")))
 
 	def _onMovieError(self, _err=None):
+		print(f"DEBUG GIF: QMovie error signal fired | error={_err} | path={self.selectedPath}")
+		try:
+			print(f"DEBUG GIF: QMovie state={self.imagePreview.state()} | frameCount={self.imagePreview.frameCount()}")
+		except Exception as e:
+			print(f"DEBUG GIF: could not read QMovie state: {e}")
 		self.showUnreadablePreview()
 
 	def _onVideoError(self, *_args):
@@ -535,19 +533,19 @@ class GlitcherWindow(QMainWindow):
 		if file_extension == ".gif":
 			self.stopVideoPreview()
 			self.previewStack.setCurrentWidget(self.imageLabel)
-			# display GIF using QMovie
+
 			movie = QMovie(self.selectedPath)
+			print(f"DEBUG GIF: loading {self.selectedPath}")
+			print(f"DEBUG GIF: QMovie.isValid()={movie.isValid()} | frameCount={movie.frameCount()}")
 			try:
 				movie.error.connect(self._onMovieError)
 			except Exception:
 				pass
-			if not movie.isValid() or not movie.jumpToFrame(0):
-				self.showUnreadablePreview()
-				return
 			self.imagePreview = movie
 			self.imageLabel.setMovie(self.imagePreview)
 			self.imagePreview.setScaledSize(self.imageLabel.size())
 			self.imagePreview.start()
+			print(f"DEBUG GIF: started | state={movie.state()}")
 		elif file_extension in [".png", ".jpg", ".jpeg", ".bmp"]:
 			self.stopVideoPreview()
 			self.previewStack.setCurrentWidget(self.imageLabel)
