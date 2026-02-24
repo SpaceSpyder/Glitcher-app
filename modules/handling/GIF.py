@@ -8,18 +8,11 @@ import subprocess
 import imageio_ffmpeg
 
 def repairGifWithFFmpeg(inputPath, outputPath):
-    # Architecture:
-    # 1. Read disposal methods, delays, loop from the glitched source (PIL can usually
-    #    parse the GCE metadata even from corrupt files)
-    # 2. Decode raw frames through FFmpeg – its lenient LZW decoder renders corruption
-    #    as real pixel artifacts (scanline tears, block smears etc.)
-    # 3. Composite the decoded frames onto a persistent canvas applying the original
-    #    disposal methods – this bakes ghosting / recursive overlay effects into pixels
-    # 4. Save the composited pixel buffers into a clean GIF container
+
     import tempfile, os
     ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
 
-    # ── 1. read metadata from glitched source
+    #  read metadata from glitched source
     try:
         src = Image.open(str(inputPath))
         canvas_size = src.size
@@ -36,7 +29,7 @@ def repairGifWithFFmpeg(inputPath, outputPath):
             capture_output=True)
         return
 
-    # ── 2. decode raw frames through FFmpeg
+    #  decode raw frames through FFmpeg
     with tempfile.TemporaryDirectory() as tmpdir:
         frame_pattern = os.path.join(tmpdir, "frame%04d.png")
         subprocess.run(
@@ -58,10 +51,6 @@ def repairGifWithFFmpeg(inputPath, outputPath):
     delays    = delays[:n]
     disposals = disposals[:n]
 
-    # ── 3. composite frames maintaining a canvas with original disposal methods
-    # disposal=0/1 → leave canvas as-is (next frame draws on top → ghosting)
-    # disposal=2   → clear canvas to transparent before next frame
-    # disposal=3   → restore canvas to state before current frame was drawn
     canvas      = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
     pre_draw    = canvas.copy()   # canvas state before current frame (for disposal=3)
     composited  = []
@@ -89,7 +78,7 @@ def repairGifWithFFmpeg(inputPath, outputPath):
             canvas = pre_draw
         # disposal 0/1: leave canvas as current composite (ghosting effect preserved)
 
-    # ── 4. save composited frames into a clean GIF container
+    #  4. save composited frames into a clean GIF container
     # each frame is now a full composite so disposal=2 is correct going forward
     composited[0].save(
         str(outputPath),
@@ -101,10 +90,8 @@ def repairGifWithFFmpeg(inputPath, outputPath):
         optimize=False,
     )
 
-def glitchGifBinary(inputGif, outputGif, percent=10, seed=None, progressCallback=None):
-    # raw binary GIF glitch – operates directly on the file stream
-    # (LZW data, color tables, disposal/delay bytes)
-    _glitchGifBinary(str(inputGif), str(outputGif), percent=percent, seed=seed)
+def glitchGifBinary(inputGif, outputGif, percent=10, seed=None, progressCallback=None, allowed_tags=None):
+    _glitchGifBinary(str(inputGif), str(outputGif), percent=percent, seed=seed, allowed_tags=allowed_tags)
     if progressCallback is not None:
         progressCallback(1, 1)
 

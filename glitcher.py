@@ -27,15 +27,15 @@ except Exception:
 
 from modules.glitch_types.JPEG import glitchJpeg
 from modules.glitch_types.BMP import convertFileToBMP, glitchBMP
-from modules.handling.GIF import glitchGif, glitchGifWithJPEG, glitchGifBinary, repairGifWithFFmpeg
+from modules.handling.gif import glitchGif, glitchGifWithJPEG, glitchGifBinary, repairGifWithFFmpeg
 
 
 class GlitcherWindow(QMainWindow):
 	def __init__(self):
 		super().__init__()
 		self.setWindowTitle("Glitcher v1.2")
-		#self.setMinimumSize(700, 500)
 		self.move(300, 300)
+		self.resize(850, 550)
 		self.setAcceptDrops(True)  # enable drag-drop anywhere on window
 
 		# selectedPath is used for previewing (can be original or latest output)
@@ -105,7 +105,17 @@ class GlitcherWindow(QMainWindow):
 
 		self.previewStack.setCurrentWidget(self.imageLabel)
 		
-		# Initialize preview (will show placeholder if no file selected)
+		self.gifOptionsContainer = QWidget()
+		self.gifOptions = QVBoxLayout(self.gifOptionsContainer)
+		self.gifOptionsContainer.hide()
+
+		self.colourTable = QCheckBox("Glitch colour table")
+		self.codeSize = QCheckBox("Glitch code size byte")
+		self.compressedData = QCheckBox("Glitch compressed image data")
+		self.disposalByte = QCheckBox("Glitch disposal byte")
+		#self.delayBytes = QCheckBox("Glitch delay bytes") sucks need refining / turing into sequence glitch
+
+		
 		self.updateImageDisplay()
 
 
@@ -156,10 +166,17 @@ class GlitcherWindow(QMainWindow):
 		leftLayout.addWidget(self.typeSelect)
 		leftLayout.addWidget(self.amountLabel)
 		leftLayout.addWidget(self.amountInput)
+		leftLayout.addWidget(self.gifOptionsContainer)
 		leftLayout.addWidget(self.runButton)
 		leftLayout.addWidget(self.progressLabel)
 		leftLayout.addWidget(self.progressBar)
 		leftLayout.addWidget(self.outputConsole)
+
+		self.gifOptions.addWidget(self.colourTable) 
+		self.gifOptions.addWidget(self.codeSize) 
+		self.gifOptions.addWidget(self.compressedData) 
+		self.gifOptions.addWidget(self.disposalByte) 
+		#self.gifOptions.addWidget(self.delayBytes) 
 
 		# main layout
 		layout.addLayout(mainLayout)
@@ -218,15 +235,36 @@ class GlitcherWindow(QMainWindow):
 			finalWidth = int(width * scale )
 			print(f"DEBUG: Calculated widget width: {finalWidth}, Total window width would be: {150 + finalWidth}")
 			self.previewStack.resize(finalWidth, finalHeight)
-			self.resize(450 + finalWidth, 500)
+			self.resize(450 + finalWidth, 550)
 
-		# Check if the file is an image and display it
+		# check if the file is an image and display it
 		if ext in [".png", ".jpg", ".jpeg", ".bmp"]:
 			pixmap = QPixmap(path)
 			if pixmap.isNull():
 				self.showUnreadablePreview()
 			else:
 				self.fileDisplay.setPixmap(pixmap)
+
+		# auto sets the glitch type
+		if ext == ".gif":
+			self.typeSelect.setCurrentText("GIF")
+		elif ext == ".bmp":
+			self.typeSelect.setCurrentText("BMP")
+		elif ext == ".jpg" or ext == ".jpeg":
+			self.typeSelect.setCurrentText("JPEG")
+		else:
+			self.typeSelect.setCurrentText("JPEG")
+
+		# show/hide GIF-specific options container
+		try:
+			if ext == ".gif":
+				self.gifOptionsContainer.show()
+			else:
+				self.gifOptionsContainer.hide()
+		except Exception:
+			pass
+
+			
 
 		#self.log(f"Loaded: {path}")
 
@@ -350,7 +388,21 @@ class GlitcherWindow(QMainWindow):
 					glitchGif(str(srcPath), str(outputPath), percent=amount, progressCallback=self.updateProgress)
 				elif choice == "GIF":
 					self.log("Applying binary GIF glitch (LZW/color/disposal)...")
-					glitchGifBinary(str(srcPath), str(outputPath), percent=amount, progressCallback=self.updateProgress)
+					allowed = []
+					try:
+						if getattr(self, 'colourTable', None) and self.colourTable.isChecked():
+							allowed.append('color')
+						if getattr(self, 'codeSize', None) and self.codeSize.isChecked():
+							allowed.append('lzw_mcs')
+						if getattr(self, 'compressedData', None) and self.compressedData.isChecked():
+							allowed.append('lzw')
+						if getattr(self, 'disposalByte', None) and self.disposalByte.isChecked():
+							allowed.append('disposal')
+						if getattr(self, 'delayBytes', None) and self.delayBytes.isChecked():
+							allowed.append('delay')
+					except Exception:
+						allowed = None
+					glitchGifBinary(str(srcPath), str(outputPath), percent=amount, progressCallback=self.updateProgress, allowed_tags=allowed)
 				else:
 					self.log("Applying JPEG glitch to frames...")
 					skipped, total_frames = glitchGifWithJPEG(
@@ -363,6 +415,7 @@ class GlitcherWindow(QMainWindow):
 				repairedPath = self.getUniquePath(downloadsDir, "glitched_repaired", ".gif")
 				repairGifWithFFmpeg(str(outputPath), str(repairedPath))
 				outputPath = repairedPath
+				
 				
 
 			elif ext in [".bmp", ".png"]:
@@ -387,7 +440,7 @@ class GlitcherWindow(QMainWindow):
 
 			elif ext == ".mp4":
 				self.log("Processing MP4...")
-				from modules.handling.MP4 import glitchMp4
+				from modules.handling.mp4 import glitchMp4
 				outputPath = self.getUniquePath(downloadsDir, "glitched", ".mp4")
 				self.log("Extracting frames from video...")
 				skipped, total_frames, audio_status, glitch_type_str = glitchMp4(
@@ -442,7 +495,7 @@ class GlitcherWindow(QMainWindow):
 			pass
 
 		self.previewStack.resize(300, 300)
-		self.resize(450 + 300 + 50, 500)
+		self.resize(450 + 300 + 50, 550)
 		self.imageLabel.setPixmap(QPixmap(str(Path(__file__).resolve().parent / "assets" / "icons" / "fileUnreadable.png")))
 
 	def _onMovieError(self, _err=None):
@@ -457,7 +510,7 @@ class GlitcherWindow(QMainWindow):
 		self.showUnreadablePreview()
 
 	def _onVideoStatusChanged(self, status):
-		# If decoding fails (corrupted), fall back to unreadable image
+		# if decoding fails (corrupted), fall back to unreadable image
 		try:
 			if status == QMediaPlayer.InvalidMedia:
 				self.showUnreadablePreview()
@@ -516,6 +569,10 @@ class GlitcherWindow(QMainWindow):
 		if not self.selectedPath:
 			self.stopVideoPreview()
 			try:
+				self.gifOptionsContainer.hide()
+			except Exception:
+				pass
+			try:
 				if hasattr(self, "imagePreview") and self.imagePreview is not None:
 					self.imagePreview.stop()
 			except Exception:
@@ -533,6 +590,10 @@ class GlitcherWindow(QMainWindow):
 		if file_extension == ".gif":
 			self.stopVideoPreview()
 			self.previewStack.setCurrentWidget(self.imageLabel)
+			try:
+				self.gifOptionsContainer.show()
+			except Exception:
+				pass
 
 			movie = QMovie(self.selectedPath)
 			print(f"DEBUG GIF: loading {self.selectedPath}")
@@ -549,6 +610,10 @@ class GlitcherWindow(QMainWindow):
 		elif file_extension in [".png", ".jpg", ".jpeg", ".bmp"]:
 			self.stopVideoPreview()
 			self.previewStack.setCurrentWidget(self.imageLabel)
+			try:
+				self.gifOptionsContainer.hide()
+			except Exception:
+				pass
 			# display static image using QPixmap
 			pixmap = QPixmap(self.selectedPath)
 			if pixmap.isNull():

@@ -92,7 +92,7 @@ _TAG_WEIGHT_MULTIPLIER = {
 }
 
 
-def glitchGif(inputPath, outputPath, percent=10, seed=None):
+def glitchGif(inputPath, outputPath, percent=10, seed=None, allowed_tags=None):
     if seed is not None:
         random.seed(seed)
 
@@ -102,6 +102,14 @@ def glitchGif(inputPath, outputPath, percent=10, seed=None):
     regions = findEditableRegions(original)
     if not regions:
         raise ValueError("No editable regions found in GIF.")
+
+    if allowed_tags is not None:
+        allowed_set = set(allowed_tags)
+        regions = [r for r in regions if r[2] in allowed_set]
+        if not regions:
+            with open(outputPath, "wb") as f:
+                f.write(original)
+            return
 
     editable_sorted = sorted(regions, key=lambda r: r[0])
     safe_snapshots = []
