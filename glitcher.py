@@ -112,11 +112,17 @@ class GlitcherWindow(QMainWindow):
 		self.gifOptions = QVBoxLayout(self.gifOptionsContainer)
 		self.gifOptionsContainer.hide()
 
+		# check boxes
 		self.colourTable = QCheckBox("Glitch colour table")
 		self.codeSize = QCheckBox("Glitch code size byte")
 		self.compressedData = QCheckBox("Glitch compressed image data")
 		self.disposalByte = QCheckBox("Glitch disposal byte")
-		#self.delayBytes = QCheckBox("Glitch delay bytes") sucks need refining / turing into sequence glitch
+
+		# sets boxes to checked by default
+		self.colourTable.setChecked(True)
+		self.codeSize.setChecked(True)
+		self.compressedData.setChecked(True)
+		self.disposalByte.setChecked(True)
 
 		
 		self.updateImageDisplay()
@@ -135,14 +141,78 @@ class GlitcherWindow(QMainWindow):
 		self.typeSelect.setCurrentText("JPEG")
 
 		# glitch type amount
-		self.amountLabel = QLabel("Glitch amount (0-100)")
-		self.amountInput = QSpinBox()
+		self.amountLabel = QLabel("Glitch amount: 10")
+		self.amountInput = QSlider(Qt.Horizontal)
 		self.amountInput.setRange(0, 100)
 		self.amountInput.setValue(10)
+		self.amountInput.setSingleStep(1)
+		try:
+			self.amountInput.setTickInterval(10)
+			self.amountInput.setTickPosition(QSlider.TicksBelow)
+		except Exception:
+			pass
+		self.amountInput.valueChanged.connect(
+			lambda v: self.amountLabel.setText(f"Glitch amount: {v}")
+		)
+		# slider styling (light blue)
+		self.amountInput.setStyleSheet(
+			"""
+			/* slider */
+			QSlider::groove:horizontal {
+				border: 1px solid #a0a0a0;
+				height: 2px;
+				background: #d9d9d9;
+				margin: 2px 0;
+				border-radius: 2px;
+			}
+			/* filled part of the slider */
+			QSlider::sub-page:horizontal {
+				background: #80d8ff;
+				border: 1px solid #4FC3F7;
+
+				border-radius: 2px;
+			}
+			/* unfilled part of the slider */
+			QSlider::add-page:horizontal {
+				background: #d9d9d9;
+				border: 1px solid #d9d9d9;
+
+				border-radius: 2px;
+			}
+			/* handle */
+			QSlider::handle:horizontal {
+				background: #80d8ff;
+				border: 1px solid #0288D1;
+				width: 6px;
+				margin: -8px 0; /* height */
+				/*height: 12px;*/
+				border-radius: 4px;
+			}
+			/* handle hover */
+			QSlider::handle:horizontal:hover {
+				background: #81D4FA;
+			}
+
+			
+			"""
+			
+		)
 
 		# glitch button
 		self.runButton = QPushButton("Glitch")
 		self.runButton.clicked.connect(self.runGlitch)
+		self.runButton.setStyleSheet(
+			"""
+			QPushButton {
+				background-color: #d1d1d1;
+				border: 1px solid #a0a0a0;
+				padding: 4px;
+			}
+			QPushButton:hover {
+				background-color: #bfbfbf;
+			}
+			"""
+		)
 
 		# progress bar
 		self.progressLabel = QLabel("Progress: 0/0")
@@ -360,6 +430,8 @@ class GlitcherWindow(QMainWindow):
 			defaultDir, "Supported files (*.png *.jpg *.jpeg *.bmp *.gif *.mp4);;All files (*.*)") # file upload filters
 		if path:
 			self.loadFile(path)
+			self.runButton.setStyleSheet("")
+
 
 
 	# update the file display after the process is done
@@ -484,7 +556,7 @@ class GlitcherWindow(QMainWindow):
 	def getUploadedFilePath(self):
 		return self.originalPath
 
-	def showUnreadablePreview(self):
+	def showUnreadablePreview(self): # fileunreadable
 		self.stopVideoPreview()
 		try:
 			self.previewStack.setCurrentWidget(self.imageLabel)
@@ -497,8 +569,12 @@ class GlitcherWindow(QMainWindow):
 		except Exception:
 			pass
 
+		self.runButton.setStyleSheet("""QPushButton {background-color: #d1d1d1; border: 1px solid #a0a0a0; padding: 4px;} QPushButton:hover {background-color: #bfbfbf;}""") # makes glitch button greyed
+
 		self.previewStack.resize(300, 300)
-		self.resize(450 + 300 + 50, 550)
+		self.resize(450 + 350 + 50, 550)
+		
+		#self.widgetRight.setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX)
 		self.imageLabel.setPixmap(QPixmap(str(Path(__file__).resolve().parent / "assets" / "icons" / "fileUnreadable.png")))
 
 	def _onMovieError(self, _err=None):
@@ -609,6 +685,13 @@ class GlitcherWindow(QMainWindow):
 			self.imageLabel.setMovie(self.imagePreview)
 			self.imagePreview.setScaledSize(self.imageLabel.size())
 			self.imagePreview.start()
+			# Some corrupted GIFs fail silently (no QMovie.error). Verify a frame decodes.
+			QTimer.singleShot(
+				250,
+				lambda m=movie: self.showUnreadablePreview()
+				if (m.state() != QMovie.Running or m.currentPixmap().isNull())
+				else None,
+			)
 			print(f"DEBUG GIF: started | state={movie.state()}")
 		elif file_extension in [".png", ".jpg", ".jpeg", ".bmp"]:
 			self.stopVideoPreview()
