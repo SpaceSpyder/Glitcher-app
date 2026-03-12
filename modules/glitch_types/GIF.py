@@ -92,6 +92,23 @@ _TAG_WEIGHT_MULTIPLIER = {
 }
 
 
+def _set_gif_loop(data: bytearray, loop: int = 0) -> None: # makes sure the gif loops
+    if loop < 0 or loop > 0xFFFF:
+        return
+    pat = b"\x21\xFF\x0BNETSCAPE2.0\x03\x01"
+    i = data.find(pat)
+    if i != -1 and i + len(pat) + 2 <= len(data):
+        data[i + len(pat): i + len(pat) + 2] = loop.to_bytes(2, "little")
+        return
+    if len(data) < 13:
+        return
+    packed = data[10]  # header(6) + packed field offset(4)
+    gct_len = 3 * (1 << ((packed & 0x07) + 1)) if ((packed >> 7) & 1) else 0
+    pos = 13 + gct_len  # header(6) + LSD(7) + GCT
+    if 0 <= pos <= len(data):
+        data[pos:pos] = pat + loop.to_bytes(2, "little") + b"\x00"
+
+
 def glitchGif(inputPath, outputPath, percent=10, seed=None, allowed_tags=None):
     if seed is not None:
         random.seed(seed)
@@ -151,5 +168,6 @@ def glitchGif(inputPath, outputPath, percent=10, seed=None, allowed_tags=None):
     for start, snap in safe_snapshots:
         data[start:start + len(snap)] = snap
 
+    _set_gif_loop(data, 0)
     with open(outputPath, "wb") as f:
         f.write(data)

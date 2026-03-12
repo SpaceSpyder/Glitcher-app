@@ -25,6 +25,9 @@ try:
 except Exception:
 	_HAS_QT_MULTIMEDIA = False
 
+
+	
+
 from modules.glitch_types.JPEG import glitchJpeg
 from modules.glitch_types.BMP import convertFileToBMP, glitchBMP
 from modules.handling.gif import glitchGif, glitchGifWithJPEG, glitchGifBinary, repairGifWithFFmpeg
