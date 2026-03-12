@@ -1,5 +1,5 @@
 ## Glitcher v1.2
-> App may take longer when first ran because it's downloading packages and setting up a virtual environment
+> App may take longer when first ran because it's downloading packages and setting up a venv
 
 Currently supporting: .png, .jpeg, .bmp, .gif, .mp4
 

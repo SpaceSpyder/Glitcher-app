@@ -4,12 +4,10 @@ from pathlib import Path
 import sys
 import subprocess
 
-# auto-setup venv and installs packages
-venv_path = Path(__file__).parent / ".venv"
-if not venv_path.exists():
-	subprocess.run([sys.executable, "-m", "venv", str(venv_path)], check=True)
-	pip_path = venv_path / "Scripts" / "pip.exe"
-	subprocess.run([str(pip_path), "install", "-r", str(venv_path.parent / "requirements.txt")], check=True)
+#	so the executable can find resources when packaged with PyInstaller
+def _resource_path(*parts: str) -> Path:
+	base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+	return base.joinpath(*parts)
 
 os.environ.setdefault("QT_MULTIMEDIA_PREFERRED_PLUGINS", "windowsmediafoundation")
 
@@ -25,8 +23,6 @@ try:
 except Exception:
 	_HAS_QT_MULTIMEDIA = False
 
-
-	
 
 from modules.glitch_types.JPEG import glitchJpeg
 from modules.glitch_types.BMP import convertFileToBMP, glitchBMP
@@ -414,7 +410,7 @@ class GlitcherWindow(QMainWindow):
 
 	# help button function
 	def showHelp(self):
-		help_file = Path(__file__).resolve().parent / "assets/how to glitch.txt"
+		help_file = _resource_path("assets", "how to glitch.txt")
 		if help_file.exists():
 			os.startfile(str(help_file))
 			self.log("Opening help file...")
@@ -575,7 +571,7 @@ class GlitcherWindow(QMainWindow):
 		self.resize(450 + 350 + 50, 550)
 		
 		#self.widgetRight.setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX)
-		self.imageLabel.setPixmap(QPixmap(str(Path(__file__).resolve().parent / "assets" / "icons" / "fileUnreadable.png")))
+		self.imageLabel.setPixmap(QPixmap(str(_resource_path("assets", "icons", "fileUnreadable.png"))))
 
 	def _onMovieError(self, _err=None):
 		print(f"DEBUG GIF: QMovie error signal fired | error={_err} | path={self.selectedPath}")
@@ -657,7 +653,7 @@ class GlitcherWindow(QMainWindow):
 			except Exception:
 				pass
 			self.previewStack.setCurrentWidget(self.imageLabel)
-			placeholder_path = Path(__file__).resolve().parent / "assets" / "icons" / "placeHolder.png"
+			placeholder_path = _resource_path("assets", "icons", "placeHolder.png")
 			pixmap = QPixmap(str(placeholder_path))
 			if not pixmap.isNull():
 				self.imageLabel.setPixmap(pixmap)
