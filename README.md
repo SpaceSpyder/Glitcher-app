@@ -9,6 +9,7 @@ Currently supporting: .png, .jpeg, .bmp, .gif, .mp4
 
 
 ## Examples:
+<img src="./assets/examples%20demos/compared.gif" width="400">
 <img src="./assets/examples%20demos/ex(3).gif" width="400">
 <img src="./assets/examples%20demos/ex(4).gif" width="400">
 <img src="./assets/examples%20demos/ex(6).gif" width="400">

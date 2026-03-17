@@ -136,6 +136,9 @@ class GlitcherWindow(QMainWindow):
 		self.typeSelect.addItems(["BMP", "JPEG", "GIF"])
 		self.typeSelect.setCurrentText("JPEG")
 
+		# show GIF-specific options only when user selects "GIF" as the glitch type
+		self.typeSelect.currentTextChanged.connect(self.updateGifOptionsVisibility)
+
 		# glitch type amount
 		self.amountLabel = QLabel("Glitch amount: 10")
 		self.amountInput = QSlider(Qt.Horizontal)
@@ -324,12 +327,9 @@ class GlitcherWindow(QMainWindow):
 		else:
 			self.typeSelect.setCurrentText("JPEG")
 
-		# show/hide GIF-specific options container
+		# ensure GIF options visibility follows the currently selected glitch type
 		try:
-			if ext == ".gif":
-				self.gifOptionsContainer.show()
-			else:
-				self.gifOptionsContainer.hide()
+			self.updateGifOptionsVisibility()
 		except Exception:
 			pass
 
@@ -665,8 +665,12 @@ class GlitcherWindow(QMainWindow):
 		if file_extension == ".gif":
 			self.stopVideoPreview()
 			self.previewStack.setCurrentWidget(self.imageLabel)
+			# show GIF options only when the selected glitch type is GIF
 			try:
-				self.gifOptionsContainer.show()
+				if getattr(self, 'typeSelect', None) and self.typeSelect.currentText() == "GIF":
+					self.gifOptionsContainer.show()
+				else:
+					self.gifOptionsContainer.hide()
 			except Exception:
 				pass
 
@@ -709,6 +713,16 @@ class GlitcherWindow(QMainWindow):
 			self.stopVideoPreview()
 			self.previewStack.setCurrentWidget(self.imageLabel)
 			self.imageLabel.setText("Unsupported file format")
+
+	# show/hide GIF-specific options based on selected glitch type
+	def updateGifOptionsVisibility(self):
+		try:
+			if getattr(self, 'typeSelect', None) and self.typeSelect.currentText() == "GIF":
+				self.gifOptionsContainer.show()
+			else:
+				self.gifOptionsContainer.hide()
+		except Exception:
+			pass
 
 if __name__ == "__main__":
 	app = QApplication([])
