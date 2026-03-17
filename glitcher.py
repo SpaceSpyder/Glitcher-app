@@ -482,10 +482,11 @@ class GlitcherWindow(QMainWindow):
 						percent=amount,
 						progressCallback=self.updateProgress,)
 					self.log(f"Frames skipped: {skipped} / {total_frames}")
-				self.log("Repairing GIF structure via FFmpeg (preserves glitch visuals)...")
-				repairedPath = self.getUniquePath(downloadsDir, "glitched_repaired", ".gif")
-				repairGifWithFFmpeg(str(outputPath), str(repairedPath))
-				outputPath = repairedPath
+				if choice == "GIF":
+					self.log("Repairing GIF structure via FFmpeg (preserves glitch visuals)...")
+					repairedPath = self.getUniquePath(downloadsDir, "glitched_repaired", ".gif")
+					repairGifWithFFmpeg(str(outputPath), str(repairedPath))
+					outputPath = repairedPath
 				
 				
 
