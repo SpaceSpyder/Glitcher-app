@@ -113,6 +113,10 @@ class GlitcherWindow(QMainWindow):
 		self.codeSize = QCheckBox("Glitch code size byte")
 		self.compressedData = QCheckBox("Glitch compressed image data")
 		self.disposalByte = QCheckBox("Glitch disposal byte")
+		# toggle to enable/disable automatic GIF repairing after binary glitches
+		self.repairGifCheckbox = QCheckBox("Auto-repair GIFs")
+		# toggle to rebuild GIF from frames after glitch to preserve visuals
+		self.rebuildFromFramesCheckbox = QCheckBox("Rebuild from frames after glitch")
 
 		# sets boxes to checked by default
 		self.colourTable.setChecked(True)
@@ -248,6 +252,12 @@ class GlitcherWindow(QMainWindow):
 		self.gifOptions.addWidget(self.codeSize) 
 		self.gifOptions.addWidget(self.compressedData) 
 		self.gifOptions.addWidget(self.disposalByte) 
+		# place the repair toggle at the bottom of GIF options
+		self.repairGifCheckbox.setChecked(True)
+		self.gifOptions.addWidget(self.repairGifCheckbox)
+		# default: off (user opts in to re-encode)
+		self.rebuildFromFramesCheckbox.setChecked(False)
+		self.gifOptions.addWidget(self.rebuildFromFramesCheckbox)
 		#self.gifOptions.addWidget(self.delayBytes) 
 
 		# main layout
@@ -482,11 +492,37 @@ class GlitcherWindow(QMainWindow):
 						percent=amount,
 						progressCallback=self.updateProgress,)
 					self.log(f"Frames skipped: {skipped} / {total_frames}")
+				# track if we performed an automatic repair so we can avoid rebuilding it
+				repaired_performed = False
 				if choice == "GIF":
-					self.log("Repairing GIF structure via FFmpeg (preserves glitch visuals)...")
-					repairedPath = self.getUniquePath(downloadsDir, "glitched_repaired", ".gif")
-					repairGifWithFFmpeg(str(outputPath), str(repairedPath))
-					outputPath = repairedPath
+					# Only auto-repair if the user enabled the repair toggle
+					if getattr(self, 'repairGifCheckbox', None) and self.repairGifCheckbox.isChecked():
+						self.log("Repairing GIF structure via FFmpeg (preserves glitch visuals)...")
+						# keep the same numeric suffix as the original glitched file by
+						# basing the repaired name on the glitched file's stem
+						repaired_base = f"{Path(outputPath).stem}_repaired"
+						repairedPath = self.getUniquePath(downloadsDir, repaired_base, Path(outputPath).suffix)
+						repairGifWithFFmpeg(str(outputPath), str(repairedPath))
+						outputPath = repairedPath
+						repaired_performed = True
+					else:
+						self.log("Skipping GIF auto-repair (disabled).")
+
+				# Optionally rebuild from decoded frames to ensure readability and preserve visuals
+				if getattr(self, 'rebuildFromFramesCheckbox', None) and self.rebuildFromFramesCheckbox.isChecked() and not repaired_performed:
+					self.log("Rebuilding GIF from decoded frames to preserve visuals and timing...")
+					rebuilt_base = f"{Path(outputPath).stem}_rebuilt"
+					rebuiltPath = self.getUniquePath(downloadsDir, rebuilt_base, Path(outputPath).suffix)
+					try:
+						from modules.handling.gif import rebuildGifFromGlitched
+						ok = rebuildGifFromGlitched(str(outputPath), str(rebuiltPath), progressCallback=self.updateProgress)
+						if ok:
+							outputPath = rebuiltPath
+							self.log(f"Rebuilt GIF saved: {outputPath}")
+						else:
+							self.log("Rebuild failed; keeping previous output.")
+					except Exception as e:
+						self.log(f"Rebuild failed: {e}")
 				
 				
 

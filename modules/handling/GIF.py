@@ -192,3 +192,80 @@ def glitchGifWithJPEG(inputGif, outputGif, percent=50, maxChunkLength=50, seed=N
         disposal=disposal)
 
     return skippedFrames, total
+
+
+def rebuildGifFromGlitched(inputGif, outputGif, progressCallback=None):
+    """Attempt to decode a (possibly glitched) GIF and re-encode it from decoded frames,
+    preserving per-frame durations and loop count. If Pillow cannot open the GIF,
+    fall back to repairing/decoding via FFmpeg and then re-encode.
+    """
+    import tempfile, os
+
+    try:
+        gif = Image.open(str(inputGif))
+        frames = []
+        durations = []
+        loop = gif.info.get("loop", 0)
+        disposal = gif.info.get("disposal", 2)
+        for frame in ImageSequence.Iterator(gif):
+            frames.append(frame.convert("RGB"))
+            durations.append(frame.info.get("duration", gif.info.get("duration", 100)))
+
+        if not frames:
+            raise ValueError("No frames decoded")
+
+        frames[0].save(
+            str(outputGif),
+            save_all=True,
+            append_images=frames[1:],
+            loop=loop,
+            duration=durations,
+            disposal=disposal,
+            optimize=False,
+        )
+        if progressCallback is not None:
+            progressCallback(1, 1)
+        return True
+
+    except Exception:
+        # fall back to FFmpeg-based decode + re-encode using existing repair flow
+        ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            frame_pattern = os.path.join(tmpdir, "frame%04d.png")
+            # try to extract frames via ffmpeg
+            subprocess.run([ffmpeg, "-y", "-i", str(inputGif), "-vsync", "0", frame_pattern], capture_output=True)
+            frame_files = sorted([f for f in os.listdir(tmpdir) if f.endswith('.png')])
+            if not frame_files:
+                return False
+
+            raw_frames = [Image.open(os.path.join(tmpdir, f)).convert("RGB") for f in frame_files]
+
+            # attempt to get durations from original with Pillow if possible
+            durations = []
+            try:
+                src = Image.open(str(inputGif))
+                for i in range(getattr(src, 'n_frames', len(raw_frames))):
+                    src.seek(i)
+                    durations.append(src.info.get('duration', 100))
+            except Exception:
+                durations = [100] * len(raw_frames)
+
+            loop = 0
+            try:
+                src = Image.open(str(inputGif))
+                loop = src.info.get('loop', 0)
+            except Exception:
+                pass
+
+            raw_frames[0].save(
+                str(outputGif),
+                save_all=True,
+                append_images=raw_frames[1:],
+                loop=loop,
+                duration=durations,
+                disposal=2,
+                optimize=False,
+            )
+            if progressCallback is not None:
+                progressCallback(1, 1)
+            return True

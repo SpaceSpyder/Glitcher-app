@@ -5,14 +5,14 @@ def findEditableRegions(data: bytearray):
     pos = 0
     length = len(data)
 
-    pos += 6  # Header
+    pos += 6  # header
 
     if pos + 7 > length:
         return regions
     lsd_packed = data[pos + 4]
     has_gct    = (lsd_packed >> 7) & 1
     gct_size   = lsd_packed & 0x07
-    pos += 7  # LSD
+    pos += 7  # lsd
 
     if has_gct:
         gct_len = 3 * (1 << (gct_size + 1))
